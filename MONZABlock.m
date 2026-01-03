@@ -71,20 +71,20 @@ classdef MONZABlock < matlab.System
                 trackNormalAngle = obj.getTangentToParabola(u);
                 %For Angle>0<pi sin>=0; Angle<0>-pi sin<=0 -> Angle pos
                 %means going left, angle neg means going right, thus the -
+                if u > pi/2
+                    u = pi/2;
+                elseif u < -pi/2
+                    u = -pi/2;
+                end
                 if u > 0
-                    sincorrection = -1;
+                    correction = -1;
                 else
-                    sincorrection = 1;
+                    correction = 1;
                 end
-                if (u < pi/2 && u >= 0) || u < -pi/2
-                    coscorrection = -1;
-                else
-                    coscorrection = 1;
-                end
-                a_tangent = abs(g*(sin(trackNormalAngle)-cos(trackNormalAngle)*obj.friction_coef));
+                a_tangent = g*(abs(sin(trackNormalAngle))-abs(cos(trackNormalAngle))*obj.friction_coef);
 
-                obj.disk_ax = a_tangent * cos(trackNormalAngle) * coscorrection;
-                obj.disk_ay = a_tangent * sin(trackNormalAngle) * sincorrection;
+                obj.disk_ax = a_tangent * cos(trackNormalAngle) * correction;
+                obj.disk_ay = a_tangent * sin(trackNormalAngle) * correction;
                 obj.updateVelAndPose(old_disk_x, old_disk_y);
                 % WIP: Change obj.disk_state if disk gets out of parabola
                 % WIP: Change obj.disk_state if disk gets out of parabola
