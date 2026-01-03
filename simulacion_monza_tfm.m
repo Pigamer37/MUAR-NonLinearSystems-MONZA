@@ -2,7 +2,17 @@
 clear,clc,close all;
 Ts = 0.033;
 difficulty=4;
-%%
+%% Sim
+mdl = "MONZA";
+simIn = Simulink.SimulationInput(mdl);
+simIn = setModelParameter(simIn,"StopTime","5");
+simIn = setBlockParameter(simIn,strcat(mdl,"/MONZABlock"),"Ts","Ts");
+out = sim(simIn);
+giro_m = out.giro_m;
+xs = out.xs;
+ys = out.ys;
+clear out;
+%% Draw
 switch difficulty
     case 1
         load('dificultad1.mat');
