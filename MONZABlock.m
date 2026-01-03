@@ -27,7 +27,7 @@ classdef MONZABlock < matlab.System
         disk_vy
         disk_ax
         disk_ay
-        disk_state %0 roll, 1 fall, 2 win, 3 lost
+        disk_state %-1 initial, 0 roll, 1 fall, 2 win, 3 lost
         current_piso
     end
 
@@ -61,6 +61,10 @@ classdef MONZABlock < matlab.System
             g = 9.81;
             coder.extrinsic('gcs');
             coder.extrinsic('set_param');
+            if obj.disk_state == -1
+                [obj.disk_x, obj.disk_y] = obj.rotate(u,obj.disk_x,obj.disk_y);
+                obj.disk_state = 0;
+            end
 
             old_disk_x = obj.disk_x;
             old_disk_y = obj.disk_y;
@@ -86,13 +90,28 @@ classdef MONZABlock < matlab.System
                 obj.disk_ax = a_tangent * cos(trackNormalAngle) * correction;
                 obj.disk_ay = a_tangent * sin(trackNormalAngle) * correction;
                 obj.updateVelAndPose(old_disk_x, old_disk_y);
-                % WIP: Change obj.disk_state if disk gets out of parabola
+                obj.stickToParabola(u);
+
+                if obj.checkIfFell(u,dificultad)
+                    if obj.current_piso < 7
+                        obj.current_piso = obj.current_piso + 1;
+                        obj.disk_state = 1; %falling
+                    else
+                        obj.disk_state = 2; %won
+                    end
+                end
+                if obj.checkIfOut(u,dificultad)
+                    obj.disk_state = 3;
+                end
                 % WIP: Change obj.disk_state if disk gets out of parabola
             case 1 %falling
                 %projectile fall
                 obj.disk_ax = 0;
                 obj.disk_ay = obj.disk_mass * g;
                 obj.updateVelAndPose(old_disk_x, old_disk_y);
+                if obj.checkIfOut(u,dificultad)
+                    obj.disk_state = 3;
+                end
                 % WIP: Change obj.disk_state if disk falls into parabola
             case 2 %won
                 %do nothing
@@ -111,7 +130,7 @@ classdef MONZABlock < matlab.System
             end
 
             poseInercial = [obj.disk_x, obj.disk_y];
-            poseReferencial = obj.rotate(u, obj.disk_x, obj.disk_y);
+            poseReferencial = obj.rotate(-u, obj.disk_x, obj.disk_y);
             velocidadRef = old_poseReferencial-poseReferencial;
         end
 
@@ -122,7 +141,7 @@ classdef MONZABlock < matlab.System
             obj.disk_vx = 0;
             obj.disk_vy = 0;
             obj.current_piso = 1;
-            obj.disk_state = 0;
+            obj.disk_state = -1;
             obj.disk_x = -0.1;
             obj.disk_y = 0.1092;
         end
@@ -132,6 +151,100 @@ classdef MONZABlock < matlab.System
             obj.disk_vy = obj.disk_vy + obj.disk_ay * obj.Ts;
             obj.disk_x = old_disk_x + obj.disk_vx * obj.Ts + obj.disk_ax /2 * obj.Ts * obj.Ts; %x0 + vx*t +1/2*ax*t^2
             obj.disk_y = old_disk_y + obj.disk_vy * obj.Ts + obj.disk_ay /2 * obj.Ts * obj.Ts;
+        end
+
+        function stickToParabola(obj,u)
+            [xRot,~] = obj.rotate(-u,obj.disk_x,obj.disk_y);
+            switch obj.current_piso
+            case 2
+                yRot = -0.54 * (xRot * xRot) + 0.0686;
+            case 3
+                yRot = -0.54 * (xRot * xRot) + 0.03;
+            case 4
+                yRot = -0.54 * (xRot * xRot) -0.03;
+            case 5
+                yRot = -0.54 * (xRot * xRot) - 0.0686;
+            case 6
+                yRot = -0.54 * (xRot * xRot) - 0.1143;
+            case 7
+                yRot = -0.54 * (xRot * xRot) - 0.16;
+            otherwise
+                yRot = -0.54 * (xRot * xRot) + 0.1143;
+            end
+            [~, obj.disk_y] = obj.rotate(u,xRot,yRot);
+        end
+        
+        function fell = checkIfFell(obj,u,diff)
+            [xRot, ~] = obj.rotate(u, obj.disk_x, obj.disk_y);
+            xs = calcPista(u,diff);
+            fell = false;
+            switch obj.current_piso
+            case 1
+                if xRot > xs.x1d
+                    fell = true;
+                end
+            case 3
+                if xRot > xs.x3d
+                    fell = true;
+                end
+            case 5
+                if xRot > xs.x5d
+                    fell = true;
+                end
+            case 7
+                if xRot > xs.x7d
+                    fell = true;
+                end
+            case 2
+                if xRot < xs.x2i
+                    fell = true;
+                end
+            case 4
+                if xRot < xs.x4i
+                    fell = true;
+                end
+            case 6
+                if xRot < xs.x6i
+                    fell = true;
+                end
+            end
+        end
+
+        function fell = checkIfOut(obj,u,diff)
+            [xRot, ~] = obj.rotate(u, obj.disk_x, obj.disk_y);
+            xs = calcPista(u,diff);
+            fell = false;
+            switch obj.current_piso
+            case 1
+                fell = false;
+            case 3
+                if xRot < xs.x3i
+                    fell = true;
+                end
+            case 5
+                if xRot < xs.x5i
+                    fell = true;
+                end
+            case 7
+                if xRot < xs.x7i
+                    fell = true;
+                end
+            case 2
+                if xRot > xs.x2d
+                    fell = true;
+                end
+            case 4
+                if xRot > xs.x4d
+                    fell = true;
+                end
+            case 6
+                if xRot > xs.x6d
+                    fell = true;
+                end
+            end
+            if norm(obj.disk_x,obj.disk_y) > 0.20572
+                fell = true;
+            end
         end
 
         function theta = getTangentToParabola(obj,u)
