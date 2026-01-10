@@ -68,11 +68,10 @@ classdef MONZABlock < matlab.System
 
             old_disk_x = obj.disk_x;
             old_disk_y = obj.disk_y;
-            old_poseReferencial = obj.rotate(u, old_disk_x, old_disk_y);
+            [oldxReferencial, oldyReferencial] = obj.rotate(-u, old_disk_x, old_disk_y);
             % Update disk dynamics
             switch obj.disk_state
             case 0 %rolling on parabola
-                trackNormalAngle = obj.getTangentToParabola(u);
                 %For Angle>0<pi sin>=0; Angle<0>-pi sin<=0 -> Angle pos
                 %means going left, angle neg means going right, thus the -
                 if u > pi/2
@@ -85,6 +84,7 @@ classdef MONZABlock < matlab.System
                 else
                     correction = 1;
                 end
+                trackNormalAngle = obj.getTangentToParabola(u);
                 a_tangent = g*(abs(sin(trackNormalAngle))-abs(cos(trackNormalAngle))*obj.friction_coef);
 
                 obj.disk_ax = a_tangent * cos(trackNormalAngle) * correction;
@@ -130,8 +130,9 @@ classdef MONZABlock < matlab.System
             end
 
             poseInercial = [obj.disk_x, obj.disk_y];
-            poseReferencial = obj.rotate(-u, obj.disk_x, obj.disk_y);
-            velocidadRef = old_poseReferencial-poseReferencial;
+            [posexReferencial, poseyReferencial]= obj.rotate(-u, obj.disk_x, obj.disk_y);
+            poseReferencial = [posexReferencial, poseyReferencial];
+            velocidadRef = [posexReferencial-oldxReferencial, poseyReferencial-oldyReferencial];
         end
 
         function resetImpl(obj)
@@ -302,6 +303,47 @@ classdef MONZABlock < matlab.System
             % Return false if property is visible based on object 
             % configuration, for the command line and System block dialog
             flag = false;
+        end
+        function [o1, o2, o3] = getOutputSizeImpl(obj)
+            o1 = [1 2]; o2 = [1 2]; o3 = [1 2];
+        end
+
+        function [out,out2,out3] = getOutputDataTypeImpl(obj)
+            % Return data type for each output port
+            out = "double";
+            out2 = "double";
+            out3 = "double";
+
+            % Example: inherit data type from first input port
+            % out = propagatedInputDataType(obj,1);
+        end
+
+        function [out,out2,out3] = isOutputComplexImpl(obj)
+            % Return true for each output port with complex data
+            out = false;
+            out2 = false;
+            out3 = false;
+
+            % Example: inherit complexity from first input port
+            % out = propagatedInputComplexity(obj,1);
+        end
+
+        function [out,out2,out3] = isOutputFixedSizeImpl(obj)
+            % Return true for each output port with fixed size
+            out = true;
+            out2 = true;
+            out3 = true;
+
+            % Example: inherit fixed-size status from first input port
+            % out = propagatedInputFixedSize(obj,1);
+        end
+
+        function [sz,dt,cp] = getDiscreteStateSpecificationImpl(obj,name)
+            % Return size, data type, and complexity of discrete-state
+            % specified in name
+            sz = [1 1];
+            dt = "double";
+            cp = false;
         end
     end
 end

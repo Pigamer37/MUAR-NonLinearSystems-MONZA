@@ -1,7 +1,7 @@
 %%
-clear,clc,close all;
+%clear,clc,close all;
 Ts = 0.033;
-difficulty=4;
+difficulty=1;
 %% Sim
 mdl = "MONZA";
 simIn = Simulink.SimulationInput(mdl);
