@@ -2,8 +2,8 @@
 clear,clc,close all;
 Ts = 0.033;
 difficulty=1;
-NLMPC
 %% Sim
+NLMPC
 mdl = "MONZA";
 simIn = Simulink.SimulationInput(mdl);
 simIn = setModelParameter(simIn,"StopTime","5");
