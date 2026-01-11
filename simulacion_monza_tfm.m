@@ -1,7 +1,8 @@
 %%
-%clear,clc,close all;
+clear,clc,close all;
 Ts = 0.033;
 difficulty=1;
+NLMPC
 %% Sim
 mdl = "MONZA";
 simIn = Simulink.SimulationInput(mdl);

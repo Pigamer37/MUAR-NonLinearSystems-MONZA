@@ -107,7 +107,7 @@ classdef MONZABlock < matlab.System
             case 1 %falling
                 %projectile fall
                 obj.disk_ax = 0;
-                obj.disk_ay = obj.disk_mass * g;
+                obj.disk_ay = -g;
                 obj.updateVelAndPose(old_disk_x, old_disk_y);
                 if obj.checkIfOut(u,dificultad)
                     obj.disk_state = 3;
@@ -176,7 +176,7 @@ classdef MONZABlock < matlab.System
         end
         
         function fell = checkIfFell(obj,u,diff)
-            [xRot, ~] = obj.rotate(u, obj.disk_x, obj.disk_y);
+            [xRot, ~] = obj.rotate(-u, obj.disk_x, obj.disk_y);
             xs = calcPista(u,diff);
             fell = false;
             switch obj.current_piso
@@ -212,7 +212,7 @@ classdef MONZABlock < matlab.System
         end
 
         function fell = checkIfOut(obj,u,diff)
-            [xRot, ~] = obj.rotate(u, obj.disk_x, obj.disk_y);
+            [xRot, ~] = obj.rotate(-u, obj.disk_x, obj.disk_y);
             xs = calcPista(u,diff);
             fell = false;
             switch obj.current_piso
@@ -304,46 +304,6 @@ classdef MONZABlock < matlab.System
             % configuration, for the command line and System block dialog
             flag = false;
         end
-        function [o1, o2, o3] = getOutputSizeImpl(obj)
-            o1 = [1 2]; o2 = [1 2]; o3 = [1 2];
-        end
-
-        function [out,out2,out3] = getOutputDataTypeImpl(obj)
-            % Return data type for each output port
-            out = "double";
-            out2 = "double";
-            out3 = "double";
-
-            % Example: inherit data type from first input port
-            % out = propagatedInputDataType(obj,1);
-        end
-
-        function [out,out2,out3] = isOutputComplexImpl(obj)
-            % Return true for each output port with complex data
-            out = false;
-            out2 = false;
-            out3 = false;
-
-            % Example: inherit complexity from first input port
-            % out = propagatedInputComplexity(obj,1);
-        end
-
-        function [out,out2,out3] = isOutputFixedSizeImpl(obj)
-            % Return true for each output port with fixed size
-            out = true;
-            out2 = true;
-            out3 = true;
-
-            % Example: inherit fixed-size status from first input port
-            % out = propagatedInputFixedSize(obj,1);
-        end
-
-        function [sz,dt,cp] = getDiscreteStateSpecificationImpl(obj,name)
-            % Return size, data type, and complexity of discrete-state
-            % specified in name
-            sz = [1 1];
-            dt = "double";
-            cp = false;
-        end
+        
     end
 end
