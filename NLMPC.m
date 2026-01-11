@@ -1,10 +1,14 @@
 controller = nlmpc(4,4,1); % estados: posición y velocidades, salidas: posición, input: ángulo
+controller.States(1).Units = "m";controller.States(2).Units = "m";
+controller.States(3).Units = "m/s";controller.States(4).Units = "m/s";
 controller.Ts = Ts;
-controller.PredictionHorizon = 10;
-controller.ControlHorizon = 5;
+controller.PredictionHorizon = 5;
+controller.ControlHorizon = 2;
 controller.Model.NumberOfParameters = 3; % Ts, piso, friction_coef
 controller.Model.StateFcn = @modelFcn;
 %controller.Jacobian.StateFcn = @modelJacobian;
+controller.ManipulatedVariables.Min = -pi/2;
+controller.ManipulatedVariables.Max = pi/2;
 mdl = 'MONZA';
 createParameterBus(controller,[mdl '/Nonlinear MPC Controller'],'myBusObject',{Ts,1,0})
 %% Validation
@@ -13,7 +17,6 @@ validateFcns(controller,rand(4,1),rand(1,1),[],{Ts,1,0});
 function z = modelFcn(x,u,mTs,piso,fric)
     g=9.81;
     z = zeros(4,1); %x1 = x; x2 = y; x1dot = vx; x2dot = vy
-    [x(3),x(4)] = rotate(u,x(3),x(4)); %de vel referencial a absoluta
     if u > pi/2
         u = pi/2;
     elseif u < -pi/2

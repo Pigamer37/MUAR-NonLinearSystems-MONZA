@@ -12,6 +12,8 @@ out = sim(simIn);
 giro_m = out.giro_m;
 xs = out.xs;
 ys = out.ys;
+xRef = out.xRef;
+yRef = out.yRef;
 clear out;
 %% Draw
 switch difficulty
@@ -60,6 +62,7 @@ for j=1:length(xs)
     plot(mx7(j,:),my7(j,:),'b','lineWidth',2);
     
     utils(giro_simu(j),difficulty);
+    plot(xRef(j),yRef(j),'k*');
 
     hold off;
     MM = getframe(fig);
