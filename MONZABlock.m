@@ -55,7 +55,7 @@ classdef MONZABlock < matlab.System
             % Perform one-time calculations, such as computing constants
         end
 
-        function [poseInercial, poseReferencial, velocidadRef] = stepImpl(obj,u,dificultad)
+        function [poseInercial, poseReferencial, velocidadRef, piso] = stepImpl(obj,u,dificultad)
             % Implement algorithm. Calculate y as a function of input u and
             % internal or discrete states.
             g = 9.81;
@@ -63,6 +63,7 @@ classdef MONZABlock < matlab.System
             coder.extrinsic('set_param');
             if obj.disk_state == -1
                 [obj.disk_x, obj.disk_y] = obj.rotate(u,obj.disk_x,obj.disk_y);
+                obj.stickToParabola(u);
                 obj.disk_state = 0;
             end
 
@@ -109,6 +110,15 @@ classdef MONZABlock < matlab.System
                 obj.disk_ax = 0;
                 obj.disk_ay = -g;
                 obj.updateVelAndPose(old_disk_x, old_disk_y);
+
+                [xRot, yRot] = obj.rotate(-u, obj.disk_x, obj.disk_y);
+                ySuelo = obj.getAlturaParabola(xRot, obj.current_piso);
+                if yRot <= ySuelo
+                    obj.disk_state = 0;   
+                    obj.disk_vy = 0;
+                    obj.stickToParabola(u);
+                end
+
                 if obj.checkIfOut(u,dificultad)
                     obj.disk_state = 3;
                 end
@@ -133,6 +143,7 @@ classdef MONZABlock < matlab.System
             [posexReferencial, poseyReferencial]= obj.rotate(-u, obj.disk_x, obj.disk_y);
             poseReferencial = [posexReferencial, poseyReferencial];
             velocidadRef = [posexReferencial-oldxReferencial, poseyReferencial-oldyReferencial];
+            piso = obj.current_piso;
         end
 
         function resetImpl(obj)
@@ -152,6 +163,13 @@ classdef MONZABlock < matlab.System
             obj.disk_vy = obj.disk_vy + obj.disk_ay * obj.Ts;
             obj.disk_x = old_disk_x + obj.disk_vx * obj.Ts + obj.disk_ax /2 * obj.Ts * obj.Ts; %x0 + vx*t +1/2*ax*t^2
             obj.disk_y = old_disk_y + obj.disk_vy * obj.Ts + obj.disk_ay /2 * obj.Ts * obj.Ts;
+        end
+        
+        % Obtener la altura de la parábola.
+        function yParabola = getAlturaParabola(~, xRot, piso)
+            offsets = [0.1143, 0.0686, 0.03, -0.03, -0.0686, -0.1143, -0.16];
+            if piso < 1, piso = 1; elseif piso > 7, piso = 7; end
+            yParabola = -0.54 * (xRot * xRot) + offsets(piso);
         end
 
         function stickToParabola(obj,u)

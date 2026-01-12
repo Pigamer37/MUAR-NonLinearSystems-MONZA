@@ -2,8 +2,8 @@ controller = nlmpc(4,4,1); % estados: posición y velocidades, salidas: posició
 controller.States(1).Units = "m";controller.States(2).Units = "m";
 controller.States(3).Units = "m/s";controller.States(4).Units = "m/s";
 controller.Ts = Ts;
-controller.PredictionHorizon = 5;
-controller.ControlHorizon = 2;
+controller.PredictionHorizon = 3;
+controller.ControlHorizon = 1;
 controller.Model.NumberOfParameters = 3; % Ts, piso, friction_coef
 controller.Model.StateFcn = @modelFcn;
 %controller.Jacobian.StateFcn = @modelJacobian;
