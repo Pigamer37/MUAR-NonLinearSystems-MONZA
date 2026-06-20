@@ -1,13 +1,15 @@
 %%
 clear,clc,close all;
 Ts = 0.033;
-difficulty=1;
+difficulty=3;
+mdl = 'MONZA';%'Monza_simulacion_NLMPC';
 NLMPC
 %% Sim
-mdl = "MONZA";
 simIn = Simulink.SimulationInput(mdl);
-simIn = setModelParameter(simIn,"StopTime","5");
-simIn = setBlockParameter(simIn,strcat(mdl,"/MONZABlock"),"Ts","Ts");
+simIn = setModelParameter(simIn,"StopTime","60");
+if(strcmp(mdl,'MONZA'))
+    simIn = setBlockParameter(simIn,strcat(mdl,"/MONZABlock"),"Ts","Ts");
+end
 out = sim(simIn);
 giro_m = out.giro_m;
 xs = out.xs;

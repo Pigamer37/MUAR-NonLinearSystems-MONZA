@@ -175,20 +175,13 @@ classdef MONZABlock < matlab.System
         function stickToParabola(obj,u)
             [xRot,~] = obj.rotate(-u,obj.disk_x,obj.disk_y);
             switch obj.current_piso
-            case 2
-                yRot = -0.54 * (xRot * xRot) + 0.0686;
-            case 3
-                yRot = -0.54 * (xRot * xRot) + 0.03;
-            case 4
-                yRot = -0.54 * (xRot * xRot) -0.03;
-            case 5
-                yRot = -0.54 * (xRot * xRot) - 0.0686;
-            case 6
-                yRot = -0.54 * (xRot * xRot) - 0.1143;
-            case 7
-                yRot = -0.54 * (xRot * xRot) - 0.16;
-            otherwise
-                yRot = -0.54 * (xRot * xRot) + 0.1143;
+            case 2, yRot = -0.54 * (xRot * xRot) + 0.0686;
+            case 3, yRot = -0.54 * (xRot * xRot) + 0.03;
+            case 4, yRot = -0.54 * (xRot * xRot) -0.03;
+            case 5, yRot = -0.54 * (xRot * xRot) - 0.0686;
+            case 6, yRot = -0.54 * (xRot * xRot) - 0.1143;
+            case 7, yRot = -0.54 * (xRot * xRot) - 0.16;
+            otherwise, yRot = -0.54 * (xRot * xRot) + 0.1143;
             end
             [~, obj.disk_y] = obj.rotate(u,xRot,yRot);
         end
