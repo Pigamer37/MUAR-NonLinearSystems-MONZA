@@ -10,6 +10,7 @@ controller.Model.StateFcn = @modelFcn;
 controller.ManipulatedVariables.Min = -pi/2;
 controller.ManipulatedVariables.Max = pi/2;
 mdl = 'MONZA';
+assert(isa(controller,'nlmpc'),"Wrong type of object")
 createParameterBus(controller,[mdl '/Nonlinear MPC Controller'],'myBusObject',{Ts,1,0})
 %% Validation
 validateFcns(controller,rand(4,1),rand(1,1),[],{Ts,1,0});

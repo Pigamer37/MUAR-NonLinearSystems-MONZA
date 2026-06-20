@@ -40,26 +40,26 @@ anim_giro_pistas;
 %**************************************************************************
 %***************GR�FICAS DE LAS CURVAS DE LA SIMULACI�N********************
 %**************************************************************************
-
+theme('light');
 fig=figure(1);
 for j=1:length(xs)
     lineLength = fprintf('Animation %3.2f%% complete',j/length(xs)*100);
-    plot(mxp(j),myp(j)+0.01,'r*','lineWidth',15)
+    plot(mxp(j),myp(j)+0.01,'r*','LineWidth',15)
     
     %*********RECTAS*********
-    plot(mxl1(j,:),myl1(j,:),'b','lineWidth',2);
-    plot(mxl2(j,:),myl2(j,:),'b','lineWidth',2);
-    plot(mxl3(j,:),myl3(j,:),'b','lineWidth',2);
-    plot(mxl4(j,:),myl4(j,:),'b','lineWidth',2); 
+    plot(mxl1(j,:),myl1(j,:),'b','LineWidth',2);
+    plot(mxl2(j,:),myl2(j,:),'b','LineWidth',2);
+    plot(mxl3(j,:),myl3(j,:),'b','LineWidth',2);
+    plot(mxl4(j,:),myl4(j,:),'b','LineWidth',2); 
     %*******PARABOLAS***********
-    plot(mx(j,:),my(j,:),'b','lineWidth',2);
-    plot(mx1(j,:),my1(j,:),'b','lineWidth',2);
-    plot(mx2(j,:),my2(j,:),'b','lineWidth',2);
-    plot(mx3(j,:),my3(j,:),'b','lineWidth',2);
-    plot(mx4(j,:),my4(j,:),'b','lineWidth',2);
-    plot(mx5(j,:),my5(j,:),'b','lineWidth',2);
-    plot(mx6(j,:),my6(j,:),'b','lineWidth',2);
-    plot(mx7(j,:),my7(j,:),'b','lineWidth',2);
+    plot(mx(j,:),my(j,:),'b');
+    plot(mx1(j,:),my1(j,:),'b');
+    plot(mx2(j,:),my2(j,:),'b');
+    plot(mx3(j,:),my3(j,:),'b');
+    plot(mx4(j,:),my4(j,:),'b');
+    plot(mx5(j,:),my5(j,:),'b');
+    plot(mx6(j,:),my6(j,:),'b');
+    plot(mx7(j,:),my7(j,:),'b');
     
     utils(giro_simu(j),difficulty);
     plot(xRef(j),yRef(j),'k*');
