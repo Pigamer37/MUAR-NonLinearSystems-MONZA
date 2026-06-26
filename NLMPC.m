@@ -12,16 +12,29 @@ controller.Model.OutputFcn = @(x,u,mTs,piso,fric) [ x(1); x(2); x(3); x(4) ];
 controller.ManipulatedVariables.Min = -pi/2;
 controller.ManipulatedVariables.Max = pi/2;
 if(strcmp(mdl,'MONZA'))
-    controller.Weights.OutputVariables = [1 1 1 0];
+    controller.Weights.OutputVariables = [1 0 1 0];
+    fric = 0;
 else
-    controller.Weights.OutputVariables = [1.05 0 0.12 0];%lvl 2
-    controller.Weights.OutputVariables = [1 0 0.13 0];
+    switch difficulty
+        case 1
+            controller.Weights.OutputVariables = [1.2 0 0.12 0];
+        case 2
+            controller.Weights.OutputVariables = [1 0 0.12 0];
+        case 3
+            controller.Weights.OutputVariables = [0.95 0 0.135 0];
+        case 4
+            controller.Weights.OutputVariables = [1.05 0 0.16 0];
+        otherwise
+            warning('Unexpected difficulty.')
+            return
+    end
     controller.Weights.ManipulatedVariablesRate = 0.5;
     controller.ControlHorizon = 1;
     controller.PredictionHorizon = 3;
+    fric=0.0223;
 end
 assert(isa(controller,'nlmpc'),"Wrong type of object")
 %mdl = 'MONZA';
-createParameterBus(controller,[mdl '/Nonlinear MPC Controller'],'myBusObject',{Ts,1,0.0223})
+createParameterBus(controller,[mdl '/Nonlinear MPC Controller'],'myBusObject',{Ts,1,fric})
 %% Validation
 validateFcns(controller,rand(4,1),rand(1,1),[],{Ts,1,0});

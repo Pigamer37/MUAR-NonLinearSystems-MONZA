@@ -1,8 +1,8 @@
 %%
 clear,clc,close all;
 Ts = 0.033;
-difficulty=3;
-mdl = 'Monza_simulacion_NLMPC';%'MONZA';
+difficulty=1;
+mdl = 'MONZA';%'Monza_simulacion_NLMPC';
 NLMPC
 %% Sim
 simIn = Simulink.SimulationInput(mdl);
@@ -73,6 +73,7 @@ for j=1:length(xs)
 
     hold off;
     MM = getframe(fig);
+    F(j) = MM;
     figure(1)
     plot(r1,r2,'r');
     hold on;
@@ -85,3 +86,16 @@ end
 fprintf('Animation complete!\n');
 close all;
 
+writerObj = VideoWriter([mdl num2str(difficulty) '.avi']);
+writerObj.FrameRate = 1/Ts; %calc framerate based on Ts
+% open the video writer
+open(writerObj);
+% write the frames to the video
+for i=1:length(F)
+    % convert the image to a frame
+    frame = F(i) ;    
+    writeVideo(writerObj, frame);
+end
+writeVideo(writerObj, F(length(F)));
+% close the writer object
+close(writerObj);
