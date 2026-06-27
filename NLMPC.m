@@ -23,7 +23,7 @@ else
         case 3
             controller.Weights.OutputVariables = [0.95 0 0.135 0];
         case 4
-            controller.Weights.OutputVariables = [1.05 0 0.16 0];
+            controller.Weights.OutputVariables = [1 0 0.16 0];
         otherwise
             warning('Unexpected difficulty.')
             return
