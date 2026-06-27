@@ -1,20 +1,22 @@
 %%
 clear,clc,close all;
 Ts = 0.033;
-difficulty=1;
+difficulty=4;
+mdl = 'Monza_simulacion_NLMPC';%'MONZA';
 NLMPC
 %% Sim
-mdl = "MONZA";
 simIn = Simulink.SimulationInput(mdl);
-simIn = setModelParameter(simIn,"StopTime","5");
-simIn = setBlockParameter(simIn,strcat(mdl,"/MONZABlock"),"Ts","Ts");
+simIn = setModelParameter(simIn,"StopTime","40");
+if(strcmp(mdl,'MONZA'))
+    simIn = setBlockParameter(simIn,strcat(mdl,"/MONZABlock"),"Ts","Ts");
+end
 out = sim(simIn);
 giro_m = out.giro_m;
 xs = out.xs;
 ys = out.ys;
 xRef = out.xRef;
 yRef = out.yRef;
-clear out;
+clear out;clc;fprintf('Sim complete\n');
 %% Draw
 switch difficulty
     case 1
@@ -62,19 +64,38 @@ for j=1:length(xs)
     plot(mx7(j,:),my7(j,:),'b');
     
     utils(giro_simu(j),difficulty);
-    plot(xRef(j),yRef(j),'k*');
+    plot(xRef(j),yRef(j),'ko');
+
+    % yParab = -0.54 * (mxp(j) * mxp(j)) + 0.1143;
+    % xParab=mxp(j)*cos(giro_simu(j))-yParab*sin(giro_simu(j));
+    % yParab=mxp(j)*sin(giro_simu(j))+yParab*cos(giro_simu(j));
+    % plot(xParab,yParab,'k*');
 
     hold off;
     MM = getframe(fig);
+    F(j) = MM;
     figure(1)
     plot(r1,r2,'r');
     hold on;
     plot(r3,r4,'r');
     hold on;
     axis equal;
-    title('SIMULADOR GRÁFICO PLATAFORMA PARA PRUEBA Y ENSAYO DE CONTROLADORES')
+    title(['SIMULADOR GRÁFICO PLATAFORMA PARA PRUEBA Y ENSAYO DE CONTROLADORES ' num2str(j/length(xs)*100) '%'])
     fprintf(repmat('\b',1,lineLength));
 end
 fprintf('Animation complete!\n');
 close all;
 
+writerObj = VideoWriter([mdl num2str(difficulty) '.avi']);
+writerObj.FrameRate = 1/Ts; %calc framerate based on Ts
+% open the video writer
+open(writerObj);
+% write the frames to the video
+for i=1:length(F)
+    % convert the image to a frame
+    frame = F(i) ;    
+    writeVideo(writerObj, frame);
+end
+writeVideo(writerObj, F(length(F)));
+% close the writer object
+close(writerObj);
