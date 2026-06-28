@@ -12,6 +12,10 @@ classdef MONZABlock < matlab.System
         Ts double = 0.033
         disk_mass double = 0.1
         friction_coef double = 0
+        % true = el carril usa el ángulo EFECTIVO (tablero + curvatura de la
+        % parábola); false = comportamiento original (solo ángulo del tablero).
+        % Permite comparar la física con y sin curvatura.
+        usar_curvatura = true
     end
 
     % Public, non-tunable properties
@@ -55,7 +59,7 @@ classdef MONZABlock < matlab.System
             % Perform one-time calculations, such as computing constants
         end
 
-        function [poseInercial, poseReferencial, velocidadRef, piso] = stepImpl(obj,u,dificultad)
+        function [poseInercial, poseReferencial, velocidadRef, piso, estado] = stepImpl(obj,u,dificultad)
             % Implement algorithm. Calculate y as a function of input u and
             % internal or discrete states.
             g = 9.81;
@@ -80,12 +84,26 @@ classdef MONZABlock < matlab.System
                 elseif u < -pi/2
                     u = -pi/2;
                 end
-                if u > 0
-                    correction = -1;
-                else
-                    correction = 1;
-                end
+                % Ángulo efectivo del carril (tablero + curvatura si el flag está activo).
                 trackNormalAngle = obj.getTangentToParabola(u);
+                % Sentido "cuesta abajo": la gravedad acelera la moneda en sentido
+                % CONTRARIO al signo de la pendiente efectiva. correction = -sign(sin(theta)),
+                % que para la planta original (sin curvatura, theta=u) coincide con -sign(u).
+                if obj.usar_curvatura
+                    if sin(trackNormalAngle) > 0
+                        correction = -1;
+                    elseif sin(trackNormalAngle) < 0
+                        correction = 1;
+                    else
+                        correction = 0;
+                    end
+                else
+                    if u > 0
+                        correction = -1;
+                    else
+                        correction = 1;
+                    end
+                end
                 a_tangent = g*(abs(sin(trackNormalAngle))-abs(cos(trackNormalAngle))*obj.friction_coef);
 
                 obj.disk_ax = a_tangent * cos(trackNormalAngle) * correction;
@@ -144,6 +162,10 @@ classdef MONZABlock < matlab.System
             poseReferencial = [posexReferencial, poseyReferencial];
             velocidadRef = [posexReferencial-oldxReferencial, poseyReferencial-oldyReferencial];
             piso = obj.current_piso;
+            % 5ª salida: estado de la moneda para detectar victoria/derrota de
+            % forma FIABLE desde fuera (To Workspace 'estado_m'):
+            %   -1 inicial, 0 rodando, 1 cayendo, 2 GANÓ (pista completa), 3 PERDIÓ.
+            estado = obj.disk_state;
         end
 
         function resetImpl(obj)
@@ -260,8 +282,18 @@ classdef MONZABlock < matlab.System
         end
 
         function theta = getTangentToParabola(obj,u)
-            obj.current_piso;
-            theta = u;
+            % Ángulo efectivo del carril que "ve" la gravedad: tablero (u) +
+            % pendiente local de la parábola. La parábola y=-0.54*x^2+offset es
+            % la misma en todos los pisos (solo cambia el offset), así que su
+            % pendiente local es dy/dx = -1.08*x en el marco referencial.
+            if obj.usar_curvatura
+                % x en el marco referencial (tablero), como en stickToParabola.
+                [xRot, ~] = obj.rotate(-u, obj.disk_x, obj.disk_y);
+                phi = atan(-1.08 * xRot);   % pendiente local de la parábola
+                theta = u + phi;            % rotaciones se suman
+            else
+                theta = u;                  % comportamiento original (solo tablero)
+            end
         end
 
         %% Backup/restore functions

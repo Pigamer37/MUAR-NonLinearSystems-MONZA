@@ -1,8 +1,8 @@
 %%
 clear,clc,close all;
 Ts = 0.033;
-difficulty=4;
-mdl = 'Monza_simulacion_NLMPC';%'MONZA';
+difficulty=1;
+mdl = 'MONZA';%'Monza_simulacion_NLMPC';
 NLMPC
 %% Sim
 simIn = Simulink.SimulationInput(mdl);

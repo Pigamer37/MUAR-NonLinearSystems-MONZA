@@ -2,13 +2,16 @@ function z = modelFcn(x,u,mTs,piso,fric)
     g=9.81;
     z = zeros(4,1); %x1 = x; x2 = y; x1dot = vx; x2dot = vy
     u = max(min(u, pi/2), -pi/2); %saturate u
-    if u > 0
-        correction = -1;
-    else
-        correction = 1;
-    end
 
-    trackNormalAngle = u;
+    trackNormalAngle = getTangentToParabola(u,x(1),x(2));
+
+    if sin(trackNormalAngle) > 0
+        correction = -1;
+    elseif sin(trackNormalAngle) < 0
+        correction = 1;
+    else
+        correction = 0;
+    end
 
     a_tangent = g*(abs(sin(trackNormalAngle))-abs(cos(trackNormalAngle))*fric);
     ax = a_tangent * cos(trackNormalAngle) * correction;
@@ -35,4 +38,14 @@ end
 function [xo,yo] = rotate(giro,x,y)
     xo=x*cos(giro)-y*sin(giro);
     yo=x*sin(giro)+y*cos(giro);
+end
+function theta = getTangentToParabola(u,x,y)
+    % Ángulo efectivo del carril que "ve" la gravedad: tablero (u) +
+    % pendiente local de la parábola. La parábola y=-0.54*x^2+offset es
+    % la misma en todos los pisos (solo cambia el offset), así que su
+    % pendiente local es dy/dx = -1.08*x en el marco referencial.
+    % x en el marco referencial (tablero), como en stickToParabola.
+    [xRot, ~] = rotate(-u, x, y);
+    phi = atan(-1.08 * xRot);   % pendiente local de la parábola
+    theta = u + phi;            % rotaciones se suman
 end

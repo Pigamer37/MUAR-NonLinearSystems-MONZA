@@ -12,7 +12,7 @@ controller.Model.OutputFcn = @(x,u,mTs,piso,fric) [ x(1); x(2); x(3); x(4) ];
 controller.ManipulatedVariables.Min = -pi/2;
 controller.ManipulatedVariables.Max = pi/2;
 if(strcmp(mdl,'MONZA'))
-    controller.Weights.OutputVariables = [1 0 1 0];
+    controller.Weights.OutputVariables = [1 0 0.9 0];
     fric = 0;
 else
     switch difficulty
