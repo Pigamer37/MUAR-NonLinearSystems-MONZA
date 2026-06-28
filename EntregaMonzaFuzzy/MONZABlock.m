@@ -1,0 +1,366 @@
+classdef MONZABlock < matlab.System
+    % MONZABlock: Nuestra planta
+    % Es un bloque MATLAB System: en cada paso recibe el giro del tablero (u) y
+    % la dificultad, y devuelve la pose de la moneda, la velocidad, el piso y el
+    % estado (rodando / cayendo / gana / pierde).
+
+    % Public, tunable properties
+    properties
+        Ts double = 0.033
+        disk_mass double = 0.1
+        % Rozamiento seco
+        % se le resta algo constante a la aceleración tangencial
+        % (g*|cos(theta)|*friction_coef). Con 0 no hay rozamiento seco (original).
+        friction_coef double = 0
+        % Rozamiento viscoso
+        % (proporcional a la velocidad), igual que el
+        % simulador proporcionado, que usa Coef_Viscoso = 0.0223. Lo
+        % aplicamos en updateVelAndPose. 
+        % 
+        % Si ponemos coef_viscoso = 0, la física queda igual sin rozamiento.
+        coef_viscoso double = 0.0223
+        % true = el carril usa el ángulo efectivo (tablero + curvatura de la
+        % parábola); false = solo el ángulo del tablero.
+        usar_curvatura = true
+    end
+
+    % Public, non-tunable properties
+    properties (Nontunable)
+
+    end
+
+    % Discrete state properties
+    properties (DiscreteState)
+        disk_x
+        disk_y
+        disk_vx
+        disk_vy
+        disk_ax
+        disk_ay
+        disk_state % -1 inicial, 0 rodando, 1 cayendo, 2 gana, 3 pierde
+        current_piso
+    end
+
+    % Pre-computed constants or internal states
+    properties (Access = private)
+
+    end
+
+    methods
+        % Constructor
+        function obj = MONZABlock(varargin)
+            % Support name-value pair arguments when constructing object
+            setProperties(obj,nargin,varargin{:})
+        end
+
+        function [xo,yo] = rotate(~,giro,x,y)
+            xo=x*cos(giro)-y*sin(giro);
+            yo=x*sin(giro)+y*cos(giro);
+        end
+    end
+
+    methods (Access = protected)
+        %% Common functions
+        function setupImpl(obj)
+            % Perform one-time calculations, such as computing constants
+        end
+
+        function [poseInercial, poseReferencial, velocidadRef, piso, estado] = stepImpl(obj,u,dificultad)
+            % Implement algorithm. Calculate y as a function of input u and
+            % internal or discrete states.
+            g = 9.81;
+            coder.extrinsic('gcs');
+            coder.extrinsic('set_param');
+            if obj.disk_state == -1
+                [obj.disk_x, obj.disk_y] = obj.rotate(u,obj.disk_x,obj.disk_y);
+                obj.stickToParabola(u);
+                obj.disk_state = 0;
+            end
+
+            old_disk_x = obj.disk_x;
+            old_disk_y = obj.disk_y;
+            [oldxReferencial, oldyReferencial] = obj.rotate(-u, old_disk_x, old_disk_y);
+            % Update disk dynamics
+            switch obj.disk_state
+            case 0 %rolling on parabola
+                % Con ángulo entre 0 y pi, sin>=0; entre 0 y -pi, sin<=0. Ángulo
+                % positivo = va a la izquierda, negativo = a la derecha (de ahí el -).
+                if u > pi/2
+                    u = pi/2;
+                elseif u < -pi/2
+                    u = -pi/2;
+                end
+                % Ángulo efectivo del carril: tablero más la curvatura si el flag está activo.
+                trackNormalAngle = obj.getTangentToParabola(u);
+                % Hacia dónde cae: la gravedad la empuja en sentido contrario al
+                % signo de la pendiente. correction = -sign(sin(theta)).
+                if obj.usar_curvatura
+                    if sin(trackNormalAngle) > 0
+                        correction = -1;
+                    elseif sin(trackNormalAngle) < 0
+                        correction = 1;
+                    else
+                        correction = 0;
+                    end
+                else
+                    if u > 0
+                        correction = -1;
+                    else
+                        correction = 1;
+                    end
+                end
+                a_tangent = g*(abs(sin(trackNormalAngle))-abs(cos(trackNormalAngle))*obj.friction_coef);
+
+                obj.disk_ax = a_tangent * cos(trackNormalAngle) * correction;
+                obj.disk_ay = a_tangent * sin(trackNormalAngle) * correction;
+                obj.updateVelAndPose(old_disk_x, old_disk_y);
+                obj.stickToParabola(u);
+
+                if obj.checkIfFell(u,dificultad)
+                    if obj.current_piso < 7
+                        obj.current_piso = obj.current_piso + 1;
+                        obj.disk_state = 1; %falling
+                    else
+                        obj.disk_state = 2; %won
+                    end
+                end
+                if obj.checkIfOut(u,dificultad)
+                    obj.disk_state = 3;
+                end
+                % WIP: Change obj.disk_state if disk gets out of parabola
+            case 1 %falling
+                %projectile fall
+                obj.disk_ax = 0;
+                obj.disk_ay = -g;
+                obj.updateVelAndPose(old_disk_x, old_disk_y);
+
+                [xRot, yRot] = obj.rotate(-u, obj.disk_x, obj.disk_y);
+                ySuelo = obj.getAlturaParabola(xRot, obj.current_piso);
+                if yRot <= ySuelo
+                    obj.disk_state = 0;   
+                    obj.disk_vy = 0;
+                    obj.stickToParabola(u);
+                end
+
+                if obj.checkIfOut(u,dificultad)
+                    obj.disk_state = 3;
+                end
+                % WIP: Change obj.disk_state if disk falls into parabola
+            case 2 %won
+                %do nothing
+                obj.disk_ax = 0;
+                obj.disk_ay = 0;
+                obj.disk_vx = 0;
+                obj.disk_vy = 0;
+                set_param(gcs, 'SimulationCommand', 'stop')
+            case 3 %lost
+                %do nothing
+                obj.disk_ax = 0;
+                obj.disk_ay = 0;
+                obj.disk_vx = 0;
+                obj.disk_vy = 0;
+                set_param(gcs, 'SimulationCommand', 'stop')
+            end
+
+            poseInercial = [obj.disk_x, obj.disk_y];
+            [posexReferencial, poseyReferencial]= obj.rotate(-u, obj.disk_x, obj.disk_y);
+            poseReferencial = [posexReferencial, poseyReferencial];
+            velocidadRef = [posexReferencial-oldxReferencial, poseyReferencial-oldyReferencial];
+            piso = obj.current_piso;
+            % 5ª salida: el estado de la moneda, para saber desde fuera si gana o
+            % pierde (lo saco por To Workspace 'estado_m'):
+            %   -1 inicial, 0 rodando, 1 cayendo, 2 gana (pista completa), 3 pierde.
+            estado = obj.disk_state;
+        end
+
+        function resetImpl(obj)
+            % Initialize / reset internal or discrete properties
+            obj.disk_ax = 0;
+            obj.disk_ay = 0;
+            obj.disk_vx = 0;
+            obj.disk_vy = 0;
+            obj.current_piso = 1;
+            obj.disk_state = -1;
+            obj.disk_x = -0.1;
+            obj.disk_y = 0.1092;
+        end
+        
+        function updateVelAndPose(obj, old_disk_x, old_disk_y)
+            % Rozamiento viscoso
+            Mvisc = 0.007;   % masa de la fórmula viscosa 
+            obj.disk_vx = obj.disk_vx + (obj.disk_ax - (obj.coef_viscoso/Mvisc) * obj.disk_vx) * obj.Ts;
+            obj.disk_vy = obj.disk_vy + (obj.disk_ay - (obj.coef_viscoso/Mvisc) * obj.disk_vy) * obj.Ts;
+            obj.disk_x = old_disk_x + obj.disk_vx * obj.Ts + obj.disk_ax /2 * obj.Ts * obj.Ts; %x0 + vx*t +1/2*ax*t^2
+            obj.disk_y = old_disk_y + obj.disk_vy * obj.Ts + obj.disk_ay /2 * obj.Ts * obj.Ts;
+        end
+        
+        % Me da la altura de la parábola en ese x.
+        function yParabola = getAlturaParabola(~, xRot, piso)
+            offsets = [0.1143, 0.0686, 0.03, -0.03, -0.0686, -0.1143, -0.16];
+            if piso < 1, piso = 1; elseif piso > 7, piso = 7; end
+            yParabola = -0.54 * (xRot * xRot) + offsets(piso);
+        end
+
+        function stickToParabola(obj,u)
+            [xRot,~] = obj.rotate(-u,obj.disk_x,obj.disk_y);
+            switch obj.current_piso
+            case 2
+                yRot = -0.54 * (xRot * xRot) + 0.0686;
+            case 3
+                yRot = -0.54 * (xRot * xRot) + 0.03;
+            case 4
+                yRot = -0.54 * (xRot * xRot) -0.03;
+            case 5
+                yRot = -0.54 * (xRot * xRot) - 0.0686;
+            case 6
+                yRot = -0.54 * (xRot * xRot) - 0.1143;
+            case 7
+                yRot = -0.54 * (xRot * xRot) - 0.16;
+            otherwise
+                yRot = -0.54 * (xRot * xRot) + 0.1143;
+            end
+            [~, obj.disk_y] = obj.rotate(u,xRot,yRot);
+        end
+        
+        function fell = checkIfFell(obj,u,diff)
+            [xRot, ~] = obj.rotate(-u, obj.disk_x, obj.disk_y);
+            xs = calcPista(u,diff);
+            fell = false;
+            switch obj.current_piso
+            case 1
+                if xRot > xs.x1d
+                    fell = true;
+                end
+            case 3
+                if xRot > xs.x3d
+                    fell = true;
+                end
+            case 5
+                if xRot > xs.x5d
+                    fell = true;
+                end
+            case 7
+                if xRot > xs.x7d
+                    fell = true;
+                end
+            case 2
+                if xRot < xs.x2i
+                    fell = true;
+                end
+            case 4
+                if xRot < xs.x4i
+                    fell = true;
+                end
+            case 6
+                if xRot < xs.x6i
+                    fell = true;
+                end
+            end
+        end
+
+        function fell = checkIfOut(obj,u,diff)
+            [xRot, ~] = obj.rotate(-u, obj.disk_x, obj.disk_y);
+            xs = calcPista(u,diff);
+            fell = false;
+            switch obj.current_piso
+            case 1
+                fell = false;
+            case 3
+                if xRot < xs.x3i
+                    fell = true;
+                end
+            case 5
+                if xRot < xs.x5i
+                    fell = true;
+                end
+            case 7
+                if xRot < xs.x7i
+                    fell = true;
+                end
+            case 2
+                if xRot > xs.x2d
+                    fell = true;
+                end
+            case 4
+                if xRot > xs.x4d
+                    fell = true;
+                end
+            case 6
+                if xRot > xs.x6d
+                    fell = true;
+                end
+            end
+            if norm(obj.disk_x,obj.disk_y) > 0.20572
+                fell = true;
+            end
+        end
+
+        function theta = getTangentToParabola(obj,u)
+            % Ángulo efectivo del carril que percibe la gravedad: el del tablero
+            % (u) más la pendiente local de la parábola. La parábola y=-0.54*x^2+offset
+            % es la misma en todos los pisos (solo cambia el offset), así que su
+            % pendiente local es dy/dx = -1.08*x en el marco referencial.
+            if obj.usar_curvatura
+                % x en el marco del tablero, igual que en stickToParabola.
+                [xRot, ~] = obj.rotate(-u, obj.disk_x, obj.disk_y);
+                phi = atan(-1.08 * xRot);   % pendiente local de la parábola
+                theta = u + phi;            % las rotaciones se suman
+            else
+                theta = u;                  
+            end
+        end
+
+        %% Backup/restore functions
+        function s = saveObjectImpl(obj)
+            % Set properties in structure s to values in object obj
+
+            % Set public properties and states
+            s = saveObjectImpl@matlab.System(obj);
+
+            % Set private and protected properties
+            %s.myproperty = obj.myproperty;
+        end
+
+        function loadObjectImpl(obj,s,wasLocked)
+            % Set properties in object obj to values in structure s
+
+            % Set private and protected properties
+            % obj.myproperty = s.myproperty; 
+
+            % Set public properties and states
+            loadObjectImpl@matlab.System(obj,s,wasLocked);
+        end
+
+        %% Advanced functions
+        function validateInputsImpl(obj,u)
+            % Validate inputs to the step method at initialization
+        end
+
+        function validatePropertiesImpl(obj)
+            % Validate related or interdependent property values
+        end
+
+        function ds = getDiscreteStateImpl(obj)
+            % Return structure of properties with DiscreteState attribute
+            ds = struct([]);
+        end
+
+        function processTunedPropertiesImpl(obj)
+            % Perform actions when tunable properties change
+            % between calls to the System object
+        end
+
+        function flag = isInputSizeMutableImpl(obj,index)
+            % Return false if input size cannot change
+            % between calls to the System object
+            flag = false;
+        end
+
+        function flag = isInactivePropertyImpl(obj,prop)
+            % Return false if property is visible based on object 
+            % configuration, for the command line and System block dialog
+            flag = false;
+        end
+        
+    end
+end
