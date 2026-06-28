@@ -17,18 +17,18 @@ if(strcmp(mdl,'MONZA'))
 else
     switch difficulty
         case 1
-            controller.Weights.OutputVariables = [1.2 0 0.12 0];
+            controller.Weights.OutputVariables = [1 0 0.17 0];
         case 2
-            controller.Weights.OutputVariables = [1 0 0.12 0];
+            controller.Weights.OutputVariables = [1 0 0.2 0];
         case 3
-            controller.Weights.OutputVariables = [0.95 0 0.135 0];
+            controller.Weights.OutputVariables = [1 0 0.2 0];
         case 4
-            controller.Weights.OutputVariables = [1 0 0.16 0];
+            controller.Weights.OutputVariables = [1 0 0.2 0];
         otherwise
             warning('Unexpected difficulty.')
             return
     end
-    controller.Weights.ManipulatedVariablesRate = 0.5;
+    controller.Weights.ManipulatedVariablesRate = 0.7;
     controller.ControlHorizon = 1;
     controller.PredictionHorizon = 3;
     fric=0.0223;
